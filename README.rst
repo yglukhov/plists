@@ -18,7 +18,7 @@ Usage
 ------------
 .. code-block:: nim
 
-    import plists, json
+    import plists
 
     let p : JsonNode = loadPlist("/Applications/Calculator.app/Contents/Info.plist")
     doAssert(p["CFBundleExecutable"].str == "Calculator")
