@@ -1,4 +1,5 @@
 import xmltree, xmlparser, json, strutils, streams
+export json
 
 proc plistXMLToJson(node: XmlNode): JsonNode =
     case node.tag
