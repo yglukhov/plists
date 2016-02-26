@@ -51,11 +51,11 @@ proc jsonToPlistXML(node: JsonNode): XmlNode =
         result.add(newText("0"))
     of JObject:
         result = newElement("dict")
-        for kv in node.fields:
-            let k = newElement("key")
-            k.add(newText(kv.key))
-            result.add(k)
-            result.add(jsonToPlistXML(kv.val))
+        for k, v in node:
+            let key = newElement("key")
+            key.add(newText(k))
+            result.add(key)
+            result.add(jsonToPlistXML(v))
     of JArray:
         result = newElement("array")
         for v in node.elems:
