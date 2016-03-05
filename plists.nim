@@ -65,8 +65,8 @@ proc writePlistXML*(node: XmlNode, s: Stream) =
     s.write(xmlHeader)
     s.write("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\x0A")
     s.write("<plist version=\"1.0\">\x0A")
-    s.write($node)
-    s.write("\x0A</plist>\x0A")
+    s.write(($node).replace(" />", "/>"))
+    s.write("\L</plist>\L")
 
 proc writePlistXML*(node: XmlNode, path: string) =
     let s = newFileStream(path, fmWrite)
