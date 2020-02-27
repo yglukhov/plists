@@ -113,7 +113,7 @@ proc writePlist*(node: JsonNode, s: Stream) = writePlistXML(jsonToPlistXML(node)
 
 proc parsePlist*(s: Stream): JsonNode =
     when defined(macosx):
-        let c = s.readAll()
+        var c = s.readAll()
         if c.len != 0:
             let s = CFReadStreamCreateWithBytesNoCopy(nil, addr c[0], c.len, kCFAllocatorNull)
             result = CFStreamToJson(s)
