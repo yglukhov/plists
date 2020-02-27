@@ -33,6 +33,39 @@ proc plistXMLToJson(node: XmlNode): JsonNode =
     else:
         echo "ERROR! ", node.tag
 
+when defined(macosx):
+    import darwin
+
+    proc CFPropertyListToJson(p: CFPropertyList): JsonNode =
+        let tid = p.getTypeId()
+        if tid == CFArrayGetTypeId():
+            result = newJArray()
+            let p = cast[CFArray[CFPropertyList]](p)
+            for e in p:
+                result.add(CFPropertyListToJson(e))
+        elif tid == CFDictionaryGetTypeId():
+            let p = cast[CFDictionary[CFString, CFPropertyList]](p)
+            result = newJObject()
+            for k, v in p:
+                result[$k] = CFPropertyListToJson(v)
+        elif tid == CFStringGetTypeId():
+            result = newJString($cast[CFString](p))
+        elif tid == CFNumberGetTypeId():
+            let p = cast[CFNumber](p)
+            result = if p.isFloatType:
+                newJFloat(p.getFloat)
+            else:
+                newJInt(p.getInt64)
+        elif tid == CFBooleanGetTypeId():
+            result = newJBool(cast[CFBoolean](p).value)
+
+    proc CFStreamToJson(s: CFReadStream): JsonNode =
+        let pl = CFPropertyListCreateWithStream(nil, s, 0, kCFPropertyListImmutable, nil, nil)
+        s.release()
+        if not pl.isNil:
+            result = CFPropertyListToJson(pl)
+            pl.release()
+
 proc jsonToPlistXML(node: JsonNode): XmlNode =
     case node.kind
     of JString:
@@ -76,8 +109,27 @@ proc writePlistXML*(node: XmlNode, path: string) =
 proc writePlist*(node: JsonNode, path: string) = writePlistXML(jsonToPlistXML(node), path)
 proc writePlist*(node: JsonNode, s: Stream) = writePlistXML(jsonToPlistXML(node), s)
 
-proc parsePlist*(s: Stream): JsonNode = plistXMLToJson(parseXml(s))
-proc loadPlist*(path: string): JsonNode = plistXMLToJson(loadXml(path))
+proc parsePlist*(s: Stream): JsonNode =
+    when defined(macosx):
+        let c = s.readAll()
+        if c.len != 0:
+            let s = CFReadStreamCreateWithBytesNoCopy(nil, addr c[0], c.len, kCFAllocatorNull)
+            result = CFStreamToJson(s)
+    else:
+        plistXMLToJson(parseXml(s))
+
+proc loadPlist*(path: string): JsonNode =
+    when defined(macosx):
+        let p = CFStringCreate(path)
+        let u = CFURLCreateWithFileSystemPath(nil, p, kCFURLPOSIXPathStyle, 0)
+        p.release()
+        if not u.isNil:
+            let s = CFReadStreamCreateWithFile(nil, u)
+            u.release()
+            if not s.isNil:
+                result = CFStreamToJson(s)
+    else:
+        plistXMLToJson(loadXml(path))
 
 when isMainModule:
     const samplePlist = """<?xml version="1.0" encoding="UTF-8" ?>
