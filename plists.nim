@@ -34,7 +34,7 @@ proc plistXMLToJson(node: XmlNode): JsonNode =
         echo "ERROR! ", node.tag
 
 when defined(macosx):
-    import darwin
+    import darwin/core_foundation
 
     proc CFPropertyListToJson(p: CFPropertyList): JsonNode =
         let tid = p.getTypeId()
@@ -60,11 +60,13 @@ when defined(macosx):
             result = newJBool(cast[CFBoolean](p).value)
 
     proc CFStreamToJson(s: CFReadStream): JsonNode =
-        let pl = CFPropertyListCreateWithStream(nil, s, 0, kCFPropertyListImmutable, nil, nil)
-        s.release()
-        if not pl.isNil:
-            result = CFPropertyListToJson(pl)
-            pl.release()
+        if not s.isNil:
+            if s.open():
+                let pl = CFPropertyListCreateWithStream(nil, s, 0, kCFPropertyListImmutable, nil, nil)
+                if not pl.isNil:
+                    result = CFPropertyListToJson(pl)
+                    pl.release()
+            s.release()
 
 proc jsonToPlistXML(node: JsonNode): XmlNode =
     case node.kind
