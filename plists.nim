@@ -36,18 +36,20 @@ proc plistXMLToJson(node: XmlNode): JsonNode =
 when defined(macosx):
     import darwin/core_foundation
 
-    proc CFPropertyListToJson(p: CFPropertyList): JsonNode =
+    proc CFPropertyListToJson*(p: CFPropertyList): JsonNode =
         let tid = p.getTypeId()
         if tid == CFArrayGetTypeId():
             result = newJArray()
             let p = cast[CFArray[CFPropertyList]](p)
             for e in p:
-                result.add(CFPropertyListToJson(e))
+                let j = CFPropertyListToJson(e)
+                if not j.isNil: result.add(j)
         elif tid == CFDictionaryGetTypeId():
             let p = cast[CFDictionary[CFString, CFPropertyList]](p)
             result = newJObject()
             for k, v in p:
-                result[$k] = CFPropertyListToJson(v)
+                let j = CFPropertyListToJson(v)
+                if not j.isNil: result[$k] = j
         elif tid == CFStringGetTypeId():
             result = newJString($cast[CFString](p))
         elif tid == CFNumberGetTypeId():
@@ -58,6 +60,37 @@ when defined(macosx):
                 newJInt(p.getInt64)
         elif tid == CFBooleanGetTypeId():
             result = newJBool(cast[CFBoolean](p).value)
+
+    proc CFPropertyListCreateWithJson*(j: JsonNode): CFPropertyList =
+        case j.kind
+        of JObject:
+            let d = CFDictionaryCreateMutable[CFString, CFPropertyList](kCFAllocatorDefault, j.len, kCFTypeDictionaryKeyCallBacks, kCFTypeDictionaryValueCallBacks)
+            for k, v in j:
+                let ck = CFStringCreate(k)
+                let cv = CFPropertyListCreateWithJson(v)
+                if not cv.isNil:
+                    d[ck] = cv
+                    ck.release()
+                cv.release()
+            result = d
+        of JArray:
+            let a = CFArrayCreateMutable[CFPropertyList](kCFAllocatorDefault, j.len, kCFTypeArrayCallBacks)
+            for i in j:
+                let cv = CFPropertyListCreateWithJson(i)
+                if not cv.isNil:
+                    a.add(cv)
+                    cv.release()
+            result = a
+        of JBool:
+            result = j.bval.toCFBoolean().retain()
+        of JInt:
+            result = CFNumberCreate(j.num)
+        of JFloat:
+            result = CFNumberCreate(j.fnum)
+        of JString:
+            result = CFStringCreate(j.str)
+        of JNull:
+            discard
 
     proc CFStreamToJson(s: CFReadStream): JsonNode =
         if not s.isNil:
@@ -159,3 +192,5 @@ when isMainModule:
     doAssert(p["testArray"][1].num == 456)
     doAssert(p["testArray"][2].bval == false)
     doAssert(p["testArray"][3].bval == true)
+    when defined(macosx):
+        show(CFPropertyListCreateWithJson(p))

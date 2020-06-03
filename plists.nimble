@@ -4,4 +4,4 @@ author        = "Yuriy Glukhov"
 description   = "Generate and parse Mac OS X .plist files"
 license       = "MIT"
 
-requires "https://github.com/yglukhov/darwin"
+requires "darwin"
